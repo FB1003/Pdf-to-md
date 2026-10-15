@@ -1,5 +1,5 @@
 @echo off
-rem Einmalige Installation: legt eine eigene Python-Umgebung im Ordner .venv an (keine Adminrechte noetig).
+rem Einmalige Installation: legt eine eigene Python-Umgebung im Ordner .venv an und installiert PyMuPDF4LLM (keine Adminrechte noetig).
 cd /d "%~dp0"
 set PY=python
 where py >nul 2>nul && set PY=py

@@ -1,12 +1,13 @@
-"""PDF -> Markdown converter (wrapper around Docling or MarkItDown).
+"""PDF -> Markdown converter (wrapper around PyMuPDF4LLM or Docling).
 
 Usage:
     python pdf2md.py datei.pdf [weitere.pdf ...]
     python pdf2md.py ordner/                 # alle PDFs im Ordner (rekursiv)
     python pdf2md.py datei.pdf -o ausgabe/   # Zielordner festlegen
-    python pdf2md.py datei.pdf --engine markitdown
+    python pdf2md.py datei.pdf --engine docling
 
-Die .md-Datei wird standardmäßig neben der PDF abgelegt.
+Die .md-Datei wird standardmäßig neben der PDF abgelegt. Ohne --engine wird
+Docling verwendet, falls installiert, sonst PyMuPDF4LLM.
 """
 
 import argparse
@@ -41,11 +42,16 @@ def make_docling_converter(ocr):
     return lambda pdf: converter.convert(pdf).document.export_to_markdown()
 
 
-def make_markitdown_converter():
-    from markitdown import MarkItDown
+def make_pymupdf_converter():
+    import pymupdf4llm
 
-    converter = MarkItDown()
-    return lambda pdf: converter.convert(str(pdf)).text_content
+    return lambda pdf: pymupdf4llm.to_markdown(str(pdf))
+
+
+def docling_installed():
+    import importlib.util
+
+    return importlib.util.find_spec("docling") is not None
 
 
 def main():
@@ -54,9 +60,10 @@ def main():
     parser.add_argument("-o", "--output", help="Zielordner (Standard: neben der PDF)")
     parser.add_argument(
         "--engine",
-        choices=["docling", "markitdown"],
-        default="docling",
-        help="docling = gute Struktur/Tabellen (Standard), markitdown = schnell und einfach",
+        choices=["auto", "pymupdf", "docling"],
+        default="auto",
+        help="pymupdf = klein und schnell, docling = gründlicher, aber groß "
+        "(Standard: docling, falls installiert)",
     )
     parser.add_argument(
         "--ocr",
@@ -70,10 +77,17 @@ def main():
         print("Keine PDF-Dateien gefunden.", file=sys.stderr)
         return 1
 
-    if args.engine == "docling":
+    engine = args.engine
+    if engine == "auto":
+        engine = "docling" if docling_installed() else "pymupdf"
+    if args.ocr and engine != "docling":
+        print("--ocr funktioniert nur mit Docling (install-docling.bat).", file=sys.stderr)
+        return 1
+    print(f"Engine: {engine}")
+    if engine == "docling":
         convert = make_docling_converter(args.ocr)
     else:
-        convert = make_markitdown_converter()
+        convert = make_pymupdf_converter()
 
     out_dir = Path(args.output) if args.output else None
     if out_dir:
