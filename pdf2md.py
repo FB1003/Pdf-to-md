@@ -1,4 +1,4 @@
-"""PDF -> Markdown converter (wrapper around PyMuPDF4LLM or Docling).
+"""PDF -> Markdown converter (wrapper around MarkItDown or Docling).
 
 Usage:
     python pdf2md.py datei.pdf [weitere.pdf ...]
@@ -7,7 +7,7 @@ Usage:
     python pdf2md.py datei.pdf --engine docling
 
 Die .md-Datei wird standardmäßig neben der PDF abgelegt. Ohne --engine wird
-Docling verwendet, falls installiert, sonst PyMuPDF4LLM.
+Docling verwendet, falls installiert, sonst MarkItDown.
 """
 
 import argparse
@@ -42,10 +42,11 @@ def make_docling_converter(ocr):
     return lambda pdf: converter.convert(pdf).document.export_to_markdown()
 
 
-def make_pymupdf_converter():
-    import pymupdf4llm
+def make_markitdown_converter():
+    from markitdown import MarkItDown
 
-    return lambda pdf: pymupdf4llm.to_markdown(str(pdf))
+    converter = MarkItDown()
+    return lambda pdf: converter.convert(str(pdf)).text_content
 
 
 def docling_installed():
@@ -60,9 +61,9 @@ def main():
     parser.add_argument("-o", "--output", help="Zielordner (Standard: neben der PDF)")
     parser.add_argument(
         "--engine",
-        choices=["auto", "pymupdf", "docling"],
+        choices=["auto", "markitdown", "docling"],
         default="auto",
-        help="pymupdf = klein und schnell, docling = gründlicher, aber groß "
+        help="markitdown = klein und schnell, docling = gründlicher, aber groß "
         "(Standard: docling, falls installiert)",
     )
     parser.add_argument(
@@ -79,7 +80,7 @@ def main():
 
     engine = args.engine
     if engine == "auto":
-        engine = "docling" if docling_installed() else "pymupdf"
+        engine = "docling" if docling_installed() else "markitdown"
     if args.ocr and engine != "docling":
         print("--ocr funktioniert nur mit Docling (install-docling.bat).", file=sys.stderr)
         return 1
@@ -87,7 +88,7 @@ def main():
     if engine == "docling":
         convert = make_docling_converter(args.ocr)
     else:
-        convert = make_pymupdf_converter()
+        convert = make_markitdown_converter()
 
     out_dir = Path(args.output) if args.output else None
     if out_dir:
